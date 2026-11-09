@@ -1,0 +1,2046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Land Manager - Draw & Track Properties</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #1e40af;
+            --secondary: #3b82f6;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --light: #f9fafb;
+            --border: #e5e7eb;
+            --text: #111827;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--light);
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* LOGIN SCREEN */
+        .auth-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-screen.active {
+            display: flex;
+        }
+
+        .auth-container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .auth-container h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+
+        .auth-container p {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 24px;
+        }
+
+        .auth-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .auth-tab {
+            padding: 12px 16px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .auth-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .auth-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-submit:hover {
+            background: var(--primary);
+        }
+
+        .btn-google {
+            width: 100%;
+            padding: 12px;
+            background: white;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-google:hover {
+            background: var(--light);
+            border-color: var(--secondary);
+        }
+
+        .auth-message {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .auth-message.error {
+            background: #fee2e2;
+            color: #dc2626;
+            display: block;
+        }
+
+        .auth-message.success {
+            background: #dcfce7;
+            color: #16a34a;
+            display: block;
+        }
+
+        /* MAIN APP */
+        .sidebar {
+            width: 320px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .header-left p {
+            font-size: 11px;
+            opacity: 0.9;
+        }
+
+        .user-info {
+            font-size: 11px;
+            text-align: right;
+        }
+
+        .user-email {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .logout-btn {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .toolbar {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            background: white;
+        }
+
+        .toolbar button {
+            width: 100%;
+            padding: 10px 16px;
+            margin-bottom: 8px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .toolbar button:last-child {
+            margin-bottom: 0;
+        }
+
+        .btn-add {
+            background: var(--accent);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-add:hover {
+            background: #059669;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .shapes-section {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .shapes-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .shape-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .shape-btn {
+            padding: 10px 8px;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            color: var(--text);
+        }
+
+        .shape-btn:hover {
+            border-color: var(--secondary);
+            background: #f0f9ff;
+        }
+
+        .shape-btn.active {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+
+        .stats {
+            padding: 16px;
+            background: var(--light);
+            border-bottom: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat {
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .lands-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .land-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid var(--secondary);
+        }
+
+        .land-item:hover {
+            background: #f9fafb;
+            border-left-color: var(--primary);
+        }
+
+        .land-item.active {
+            background: var(--secondary);
+            color: white;
+            border-left-color: var(--primary);
+        }
+
+        .land-item h3 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .land-item p {
+            font-size: 11px;
+            opacity: 0.75;
+            margin-bottom: 6px;
+        }
+
+        .land-item .area {
+            font-size: 10px;
+            background: rgba(59, 130, 246, 0.1);
+            padding: 3px 6px;
+            border-radius: 3px;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        .land-item.active .area {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+            background: white;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            user-select: none;
+        }
+
+        .map-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            font-size: 13px;
+            font-weight: 600;
+            display: none;
+            z-index: 10;
+        }
+
+        .map-info.active {
+            display: block;
+        }
+
+        .map-info.drawing {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            width: 90%;
+            max-width: 480px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .form-group-modal {
+            margin-bottom: 18px;
+        }
+
+        .form-group-modal label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .form-group-modal input,
+        .form-group-modal textarea,
+        .form-group-modal select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .form-group-modal input:focus,
+        .form-group-modal textarea:focus,
+        .form-group-modal select:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-group-modal textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-save {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-save:hover {
+            background: #059669;
+        }
+
+        .btn-cancel {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .btn-cancel:hover {
+            background: #d1d5db;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .action-buttons button {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-edit {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .btn-delete {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-close {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #9ca3af;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--secondary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .credit-badge {
+            display: block;
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: #fff;
+            font-size: 11px;
+            line-height: 1.5;
+            text-decoration: none;
+        }
+        .credit-badge b { font-weight: 700; }
+        .credit-badge a { color: #dbeafe; text-decoration: none; }
+        .credit-badge a:hover { text-decoration: underline; }
+        .sidebar-footer { padding: 10px 12px; border-top: 1px solid var(--border); background: white; }
+        .auth-credit { margin-top: 20px; }
+
+        .cookie-banner {
+            position: fixed;
+            left: 16px;
+            right: 16px;
+            bottom: 16px;
+            max-width: 520px;
+            margin: 0 auto;
+            z-index: 3000;
+            background: #111827;
+            color: #f9fafb;
+            padding: 16px 18px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+            font-size: 13px;
+            line-height: 1.5;
+            display: none;
+        }
+        .cookie-banner.show { display: block; }
+        .cookie-banner b { font-size: 14px; }
+        .cookie-banner p { margin: 6px 0 12px; color: #d1d5db; }
+        .cookie-actions { display: flex; gap: 10px; }
+        .cookie-actions button {
+            flex: 1;
+            padding: 9px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .cookie-accept { background: #3b82f6; color: #fff; }
+        .cookie-accept:hover { background: #2563eb; }
+        .cookie-decline { background: #374151; color: #f9fafb; }
+        .cookie-decline:hover { background: #4b5563; }
+
+        .app-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 2500;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 15px;
+            gap: 14px;
+        }
+        .app-loader.hidden { display: none; }
+        .app-loader .spinner {
+            width: 34px;
+            height: 34px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .forgot-link { font-size: 12px; color: var(--secondary); text-decoration: none; font-weight: 600; }
+        .forgot-link:hover { text-decoration: underline; }
+        .docs-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+        .docs-header { font-size: 12px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+        .upload-btn { display: block; text-align: center; padding: 10px; border: 2px dashed var(--secondary); border-radius: 8px; color: var(--secondary); font-size: 13px; font-weight: 600; cursor: pointer; background: #f0f9ff; }
+        .upload-btn:hover { background: #dbeafe; }
+        .docs-hint { font-size: 11px; color: #6b7280; margin: 6px 0 10px; }
+        #uploadStatus { font-size: 12px; margin-bottom: 8px; }
+        #uploadStatus .ok { color: #16a34a; }
+        #uploadStatus .err { color: #dc2626; }
+        #uploadStatus .busy { color: #1e40af; }
+        .files-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .file-card { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+        .file-thumb { height: 80px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 32px; overflow: hidden; cursor: pointer; }
+        .file-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .file-info { padding: 6px 8px; font-size: 11px; flex: 1; }
+        .file-name { font-weight: 600; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .file-size { color: #6b7280; }
+        .file-actions { display: flex; border-top: 1px solid var(--border); }
+        .file-actions button { flex: 1; border: none; background: #fff; padding: 6px 0; font-size: 11px; font-weight: 600; cursor: pointer; color: var(--primary); }
+        .file-actions button + button { border-left: 1px solid var(--border); }
+        .file-actions button.del { color: var(--danger); }
+        .file-actions button:hover { background: #f9fafb; }
+        .lightbox { display: none; position: fixed; inset: 0; z-index: 4000; background: rgba(0,0,0,0.88); align-items: center; justify-content: center; flex-direction: column; gap: 10px; }
+        .lightbox.show { display: flex; }
+        .lightbox img { max-width: 92vw; max-height: 82vh; border-radius: 6px; }
+        .lightbox .lb-bar { color: #fff; font-size: 13px; display: flex; gap: 14px; align-items: center; }
+        .lightbox .lb-bar button { background: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <!-- AUTH SCREEN -->
+    <div class="app-loader" id="appLoader"><div class="spinner"></div><div>Loading Land Manager...</div></div>
+    <div class="auth-screen" id="authScreen">
+        <div class="auth-container">
+            <h1>🗺️ Land Manager</h1>
+            <p>Track your properties with ease</p>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
+                <button class="auth-tab" onclick="switchAuthTab('signup')">Sign Up</button>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form class="auth-form active" id="loginForm" onsubmit="handleEmailLogin(event)">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="loginEmail" required placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••">
+                </div>
+                <div style="text-align:right; margin: -6px 0 14px;"><a href="#" class="forgot-link" onclick="handleForgotPassword(event)">Forgot password?</a></div>
+                <button type="submit" class="btn-submit">Login</button>
+                <div class="auth-message" id="loginMessage"></div>
+            </form>
+
+            <!-- SIGNUP FORM -->
+            <form class="auth-form" id="signupForm" onsubmit="handleEmailSignup(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="signupName" required placeholder="John Doe">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="signupEmail" required placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="signupPassword" required placeholder="••••••••" minlength="6">
+                </div>
+                <button type="submit" class="btn-submit">Create Account</button>
+                <div class="auth-message" id="signupMessage"></div>
+            </form>
+
+            <!-- GOOGLE LOGIN -->
+            <div class="auth-buttons" style="margin-top: 20px;">
+                <button type="button" class="btn-google" onclick="handleGoogleLogin()">
+                    🔵 Sign in with Google
+                </button>
+            </div>
+            <div class="auth-credit"><div class="credit-badge">✨ Created by <b>Abdul Ahad</b><br><a href="mailto:ahadwattoo2491@gmail.com">ahadwattoo2491@gmail.com</a></div></div>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div class="container" id="appContainer" style="display: none;">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="header">
+                <div class="header-left">
+                    <h1>🗺️ Land Manager</h1>
+                    <p>Property Tracker</p>
+                </div>
+                <div>
+                    <div class="user-info">
+                        <div id="userName">User</div>
+                        <div class="user-email" id="userEmail">email@example.com</div>
+                    </div>
+                    <button class="logout-btn" onclick="handleLogout()" title="Logout">🚪</button>
+                </div>
+            </div>
+
+            <div class="toolbar">
+                <button class="btn-add" onclick="openAddModal()">+ Add Land Manually</button>
+                <button class="btn-secondary" onclick="toggleMapType()" style="background: #dbeafe; color: #1e40af; margin-top: 8px;">🛰️ Toggle Map View</button>
+            </div>
+
+            <div class="shapes-section">
+                <div class="shapes-label">📐 Draw Shapes</div>
+                <div class="shape-buttons">
+                    <button class="shape-btn" onclick="selectShape('rectangle')" id="rectBtn" title="Click and drag to draw rectangle">
+                        ▭ Rectangle
+                    </button>
+                    <button class="shape-btn" onclick="selectShape('circle')" id="circleBtn" title="Click center, drag for radius">
+                        ● Circle
+                    </button>
+                    <button class="shape-btn" onclick="selectShape('polygon')" id="polyBtn" title="Click points, double-click to finish">
+                        ▲ Polygon
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Properties</div>
+                    <div class="stat-value" id="totalCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Total Area</div>
+                    <div class="stat-value" id="totalArea">0</div>
+                </div>
+            </div>
+
+            <div class="lands-list" id="landsList">
+                <div class="empty-state">
+                    <p>📍</p>
+                    <p style="margin-top: 8px;">Select a shape and draw on the map</p>
+                </div>
+            </div>
+            <div class="sidebar-footer"><div class="credit-badge">✨ Created by <b>Abdul Ahad</b><br><a href="mailto:ahadwattoo2491@gmail.com">ahadwattoo2491@gmail.com</a><br><span style="opacity:.7;font-size:10px">v6</span></div></div>
+        </div>
+
+        <!-- Map -->
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="map-info" id="mapInfo"></div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal" id="landModal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Add New Land</h2>
+            <form id="landForm">
+                <div class="form-group-modal">
+                    <label>Land Name *</label>
+                    <input type="text" id="landName" required placeholder="e.g., North Field">
+                </div>
+                <div class="form-group-modal">
+                    <label>Location/Address</label>
+                    <input type="text" id="landLocation" placeholder="e.g., Lahore, Punjab">
+                </div>
+                <div class="form-group-modal">
+                    <label>Area (m²) *</label>
+                    <input type="number" id="landArea" required placeholder="0.00" step="0.01">
+                </div>
+                <div class="form-group-modal">
+                    <label>Land Type</label>
+                    <select id="landType">
+                        <option value="agricultural">🌾 Agricultural</option>
+                        <option value="residential">🏠 Residential</option>
+                        <option value="commercial">🏢 Commercial</option>
+                        <option value="industrial">🏭 Industrial</option>
+                        <option value="mixed">🔀 Mixed Use</option>
+                    </select>
+                </div>
+                <div class="form-group-modal">
+                    <label>Status</label>
+                    <select id="landStatus">
+                        <option value="owned">✓ Owned</option>
+                        <option value="leased">📄 Leased</option>
+                        <option value="for-sale">💰 For Sale</option>
+                        <option value="for-rent">🔑 For Rent</option>
+                    </select>
+                </div>
+                <div class="form-group-modal">
+                    <label>Notes</label>
+                    <textarea id="landNotes" placeholder="Add details about this property..."></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn-save">Save Property</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Image Lightbox -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+        <img id="lightboxImg" alt="Property image">
+        <div class="lb-bar">
+            <span id="lightboxName"></span>
+            <button type="button" onclick="downloadLightbox(event)">Download</button>
+            <button type="button" onclick="closeLightbox(event, true)">Close</button>
+        </div>
+    </div>
+
+    <!-- Details Modal -->
+    <div class="modal" id="detailsModal">
+        <div class="modal-content">
+            <h2 id="detailsTitle">Property Details</h2>
+            <div id="detailsContent"></div>
+            <div class="docs-section">
+                <div class="docs-header">📎 Documents &amp; Images</div>
+                <label class="upload-btn">
+                    ⬆ Upload images or documents
+                    <input type="file" id="fileInput" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" onchange="handleFilesSelected(this)" hidden>
+                </label>
+                <div class="docs-hint">Photos are compressed automatically. Other files (PDF, Word, Excel, TXT) up to 700 KB each. Max 20 files per property.</div>
+                <div id="uploadStatus"></div>
+                <div id="filesList" class="files-grid"></div>
+            </div>
+            <div class="action-buttons">
+                <button class="btn-edit" onclick="editCurrentLand()">Edit</button>
+                <button class="btn-delete" onclick="deleteCurrentLand()">Delete</button>
+                <button class="btn-close" onclick="closeDetailsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    
+    <!-- Firebase SDK -->
+    <!-- COOKIE CONSENT BANNER -->
+    <div class="cookie-banner" id="cookieBanner" role="dialog" aria-live="polite" aria-label="Cookie notice">
+        <b>🍪 We use cookies</b>
+        <p>We use essential storage to keep you signed in and remember your preferences. Choose whether you also allow optional cookies.</p>
+        <div class="cookie-actions">
+            <button type="button" class="cookie-decline" id="cookieDecline">Essential only</button>
+            <button type="button" class="cookie-accept" id="cookieAccept">Accept all</button>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var KEY = 'land_manager_cookie_consent';
+            function readConsent() {
+                try {
+                    var m = document.cookie.match(new RegExp('(?:^|; )' + KEY + '=([^;]*)'));
+                    if (m) return decodeURIComponent(m[1]);
+                } catch (e) {}
+                try { return localStorage.getItem(KEY); } catch (e) {}
+                return null;
+            }
+            function saveConsent(value) {
+                try {
+                    document.cookie = KEY + '=' + encodeURIComponent(value) +
+                        '; max-age=' + (60 * 60 * 24 * 365) + '; path=/; SameSite=Lax' +
+                        (location.protocol === 'https:' ? '; Secure' : '');
+                } catch (e) {}
+                try { localStorage.setItem(KEY, value); } catch (e) {}
+                window.cookieConsent = value;
+            }
+            window.cookieConsent = readConsent();
+            window.resetCookieConsent = function () {
+                try { document.cookie = KEY + '=; max-age=0; path=/'; } catch (e) {}
+                try { localStorage.removeItem(KEY); } catch (e) {}
+                document.getElementById('cookieBanner').classList.add('show');
+            };
+            document.addEventListener('DOMContentLoaded', function () {
+                var banner = document.getElementById('cookieBanner');
+                if (!window.cookieConsent) { banner.classList.add('show'); }
+                document.getElementById('cookieAccept').addEventListener('click', function () {
+                    saveConsent('all');
+                    banner.classList.remove('show');
+                });
+                document.getElementById('cookieDecline').addEventListener('click', function () {
+                    saveConsent('essential');
+                    banner.classList.remove('show');
+                });
+            });
+        })();
+    </script>
+
+    <script>
+        console.log('BUILD: compat-v6 (files + password reset)');
+        window.__fbReady = false;
+        (function () {
+            var files = ['firebase-app-compat.js', 'firebase-auth-compat.js', 'firebase-firestore-compat.js'];
+            var sources = [
+                'https://www.gstatic.com/firebasejs/10.5.0/',
+                'https://cdn.jsdelivr.net/npm/firebase@10.5.0/'
+            ];
+            function loadScript(url) {
+                return new Promise(function (resolve, reject) {
+                    var el = document.createElement('script');
+                    el.src = url;
+                    el.onload = resolve;
+                    el.onerror = function () { reject(new Error('blocked: ' + url)); };
+                    document.head.appendChild(el);
+                });
+            }
+            async function loadFrom(base) {
+                for (var i = 0; i < files.length; i++) { await loadScript(base + files[i]); }
+            }
+            async function boot() {
+                var ok = false;
+                for (var i = 0; i < sources.length && !ok; i++) {
+                    try {
+                        await loadFrom(sources[i]);
+                        ok = typeof firebase !== 'undefined';
+                        console.log('Firebase loaded from', sources[i]);
+                    } catch (e) { console.warn(e.message); }
+                }
+                if (!ok) {
+                    var box = document.createElement('div');
+                    box.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#dc2626;color:#fff;padding:16px;font:14px sans-serif;text-align:center';
+                    box.innerHTML = '<b>Firebase could not be loaded from any source.</b> Check your internet, disable ad-blocker/VPN/firewall, then press Ctrl+Shift+R.';
+                    document.body.appendChild(box);
+                    return;
+                }
+                window.__fbReady = true;
+                var code = document.getElementById('mainApp').textContent;
+                var main = document.createElement('script');
+                main.textContent = code;
+                document.body.appendChild(main);
+            }
+            document.addEventListener('DOMContentLoaded', function () {
+                if (location.protocol === 'file:') {
+                    var w = document.createElement('div');
+                    w.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#f59e0b;color:#111;padding:12px;font:14px sans-serif;text-align:center';
+                    w.innerHTML = '<b>Login will not work from a file.</b> Open this page with VS Code "Live Server" (http://127.0.0.1:5500) or deploy it online.';
+                    document.body.appendChild(w);
+                }
+                boot();
+            });
+        })();
+    </script>
+
+    <script type="text/plain" id="mainApp">
+        // ============ FIREBASE CONFIG ============
+        // Go to https://firebase.google.com and create a new project
+        // Replace these values with your Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyDJ6LEtzKgDQ7gfbBoe1wHFYVvDPcJ1PXE",
+            authDomain: "land-data-manager.firebaseapp.com",
+            databaseURL: "https://land-data-manager-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "land-data-manager",
+            storageBucket: "land-data-manager.firebasestorage.app",
+            messagingSenderId: "51859223036",
+            appId: "1:51859223036:web:ce0eadd2752bf9e26c4279",
+            measurementId: "G-KLT4FBFFMN"
+        };
+
+        // Initialize Firebase
+        if (firebaseConfig.apiKey.indexOf('1234567890ABC') !== -1) {
+            var cfgBox = document.createElement('div');
+            cfgBox.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#dc2626;color:#fff;padding:14px;font:14px sans-serif;text-align:center';
+            cfgBox.innerHTML = '<b>Firebase config is still the placeholder.</b> Paste your real firebaseConfig (Firebase Console → Project settings → Your apps) into the file.';
+            document.body.appendChild(cfgBox);
+        }
+        console.log('Starting Firebase initialization...');
+        console.log('Firebase Config:', firebaseConfig);
+        
+        let app, auth, db;
+        
+        try {
+            app = firebase.initializeApp(firebaseConfig);
+            console.log('✓ Firebase app initialized:', app);
+            
+            auth = firebase.auth();
+            // Keep the user signed in across browser restarts (until they press Logout)
+            auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+                .then(function () { console.log('✓ Login persistence: LOCAL (stays signed in)'); })
+                .catch(function (err) { console.warn('Could not set LOCAL persistence:', err); });
+            console.log('✓ Firebase Auth loaded:', auth);
+            
+            db = firebase.firestore();
+            console.log('✓ Firestore loaded:', db);
+        } catch (error) {
+            console.error('✗ Firebase initialization error:', error);
+            alert('Firebase Error: ' + error.message + '\n\nCheck console (F12) for details.\nMake sure your Firebase config is correct.');
+        }
+
+        // ============ AUTH STATE ============
+        let currentUser = null;
+
+        auth.onAuthStateChanged((user) => {
+            var loaderEl = document.getElementById('appLoader');
+            if (loaderEl) loaderEl.classList.add('hidden');
+            if (user) {
+                currentUser = user;
+                document.getElementById('authScreen').classList.remove('active');
+                document.getElementById('appContainer').style.display = 'flex';
+                document.getElementById('userName').textContent = user.displayName || 'User';
+                document.getElementById('userEmail').textContent = user.email;
+                if (!map) {
+                    initMap();
+                } else {
+                    map.invalidateSize();
+                }
+                loadLands();
+            } else {
+                currentUser = null;
+                document.getElementById('authScreen').classList.add('active');
+                document.getElementById('appContainer').style.display = 'none';
+            }
+        });
+
+        // ============ AUTH FUNCTIONS ============
+        function switchAuthTab(tab) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+
+            if (tab === 'login') {
+                document.querySelectorAll('.auth-tab')[0].classList.add('active');
+                document.getElementById('loginForm').classList.add('active');
+            } else {
+                document.querySelectorAll('.auth-tab')[1].classList.add('active');
+                document.getElementById('signupForm').classList.add('active');
+            }
+
+            document.getElementById('loginMessage').innerHTML = '';
+            document.getElementById('signupMessage').innerHTML = '';
+        }
+
+        function showAuthMessage(message, isError, formId) {
+            const messageEl = document.getElementById(formId);
+            messageEl.textContent = message;
+            messageEl.className = 'auth-message ' + (isError ? 'error' : 'success');
+        }
+
+        async function handleEmailLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                showAuthMessage('Login successful!', false, 'loginMessage');
+            } catch (error) {
+                showAuthMessage('Error: ' + error.message, true, 'loginMessage');
+            }
+        }
+
+        async function handleEmailSignup(e) {
+            e.preventDefault();
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                await userCredential.user.updateProfile({ displayName: name });
+                showAuthMessage('Account created! Logging in...', false, 'signupMessage');
+            } catch (error) {
+                showAuthMessage('Error: ' + error.message, true, 'signupMessage');
+            }
+        }
+
+        function handleGoogleLogin() {
+            console.log('Google login clicked');
+            
+            if (!auth) {
+                alert('Firebase not initialized. Check console for errors.');
+                return;
+            }
+            
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                console.log('Google Provider created:', provider);
+                
+                auth.signInWithPopup(provider)
+                    .then((result) => {
+                        console.log('Google login successful:', result.user);
+                        showAuthMessage('Google login successful!', false, 'loginMessage');
+                    })
+                    .catch((error) => {
+                        console.error('Google login error:', error);
+                        let errorMsg = error.message;
+                        
+                        if (error.code === 'auth/popup-blocked') {
+                            errorMsg = 'Popup was blocked. Please allow popups for this site.';
+                        } else if (error.code === 'auth/popup-closed-by-user') {
+                            errorMsg = 'Google login was cancelled.';
+                        } else if (error.code === 'auth/unauthorized-domain') {
+                            errorMsg = 'Domain not authorized. The app is running on "' + window.location.hostname + '" (full address: ' + window.location.origin + '). Add exactly "' + window.location.hostname + '" to Firebase Console > Authentication > Settings > Authorized domains (project: ' + firebaseConfig.projectId + ').';
+                        }
+                        
+                        var detail = '';
+                        try {
+                            if (error.customData) { detail = ' | DETAILS: ' + JSON.stringify(error.customData._serverResponse || error.customData); }
+                        } catch (e2) {}
+                        showAuthMessage('Google Error [' + error.code + ']: ' + errorMsg + detail, true, 'loginMessage');
+                    });
+            } catch (e) {
+                console.error('Exception in Google login:', e);
+                showAuthMessage('Error: ' + e.message, true, 'loginMessage');
+            }
+        }
+
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+            let email = document.getElementById('loginEmail').value.trim();
+            if (!email) {
+                email = (prompt('Enter your account email to receive a password reset link:') || '').trim();
+                if (!email) return;
+                document.getElementById('loginEmail').value = email;
+            }
+            try {
+                await auth.sendPasswordResetEmail(email);
+                showAuthMessage('If an account exists for ' + email + ', a reset link has been sent. Check your inbox and spam folder.', false, 'loginMessage');
+            } catch (error) {
+                console.error('Password reset error:', error);
+                var msg = error.message;
+                if (error.code === 'auth/invalid-email') msg = 'That email address is not valid.';
+                else if (error.code === 'auth/user-not-found') msg = 'No account found with that email.';
+                else if (error.code === 'auth/too-many-requests') msg = 'Too many attempts. Please wait a few minutes and try again.';
+                showAuthMessage('Reset error [' + (error.code || 'unknown') + ']: ' + msg, true, 'loginMessage');
+            }
+        }
+
+        function handleLogout() {
+            if (confirm('Are you sure you want to logout?')) {
+                auth.signOut();
+            }
+        }
+
+        // ============ MAP & DRAWING VARS ============
+        let map;
+        let lands = [];
+        let currentLandId = null;
+        let editingLandId = null;
+        let selectedShape = null;
+        let isDrawing = false;
+        let startLat = null;
+        let startLng = null;
+        let polygons = {};
+        let drawLayer;
+        let previewLayer;
+        let tempShape = null;
+        let polygonPoints = [];
+        let tileLayer;
+        let isSatelliteMode = false;
+
+        // ============ MAP FUNCTIONS ============
+        function initMap() {
+            map = L.map('map', {
+                dragging: true,
+                zoomControl: true,
+                scrollWheelZoom: true
+            }).setView([31.5497, 74.3436], 12);
+
+            tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+
+            drawLayer = L.featureGroup().addTo(map);
+            previewLayer = L.featureGroup().addTo(map);
+
+            map.on('mousedown', function() {
+                if (selectedShape) {
+                    map.dragging.disable();
+                }
+            });
+
+            map.on('mouseup', function() {
+                map.dragging.enable();
+            });
+
+            document.getElementById('map').addEventListener('mousedown', onMouseDown);
+            document.getElementById('map').addEventListener('mousemove', onMouseMove);
+            document.getElementById('map').addEventListener('mouseup', onMouseUp);
+            document.getElementById('map').addEventListener('dblclick', onDoubleClick);
+        }
+
+        function selectShape(shape) {
+            polygonPoints = [];
+            if (previewLayer) previewLayer.clearLayers();
+            
+            document.getElementById('rectBtn').classList.remove('active');
+            document.getElementById('circleBtn').classList.remove('active');
+            document.getElementById('polyBtn').classList.remove('active');
+
+            const info = document.getElementById('mapInfo');
+            
+            if (selectedShape === shape) {
+                selectedShape = null;
+                info.classList.remove('active');
+            } else {
+                selectedShape = shape;
+                info.classList.add('active', 'drawing');
+                
+                if (shape === 'rectangle') {
+                    document.getElementById('rectBtn').classList.add('active');
+                    info.textContent = '▭ Click & drag to draw rectangle';
+                } else if (shape === 'circle') {
+                    document.getElementById('circleBtn').classList.add('active');
+                    info.textContent = '● Click center, drag for radius';
+                } else if (shape === 'polygon') {
+                    document.getElementById('polyBtn').classList.add('active');
+                    info.textContent = '▲ Click points, double-click to finish';
+                }
+            }
+        }
+
+        function onMouseDown(e) {
+            if (!selectedShape) return;
+
+            const rect = document.getElementById('map').getBoundingClientRect();
+            const latlng = map.containerPointToLatLng([e.clientX - rect.left, e.clientY - rect.top]);
+
+            isDrawing = true;
+            startLat = latlng.lat;
+            startLng = latlng.lng;
+
+            if (selectedShape === 'polygon') {
+                polygonPoints.push(latlng);
+            }
+        }
+
+        function onMouseMove(e) {
+            if (!isDrawing || !selectedShape || selectedShape === 'polygon') return;
+
+            previewLayer.clearLayers();
+
+            const rect = document.getElementById('map').getBoundingClientRect();
+            const latlng = map.containerPointToLatLng([e.clientX - rect.left, e.clientY - rect.top]);
+
+            if (selectedShape === 'rectangle') {
+                const bounds = [
+                    [startLat, startLng],
+                    [latlng.lat, startLng],
+                    [latlng.lat, startLng + (latlng.lng - startLng)],
+                    [startLat, startLng + (latlng.lng - startLng)]
+                ];
+                L.polygon(bounds, {
+                    color: '#3b82f6',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0.2,
+                    dashArray: '5, 5'
+                }).addTo(previewLayer);
+            } else if (selectedShape === 'circle') {
+                const radius = map.distance([startLat, startLng], latlng);
+                L.circle([startLat, startLng], {
+                    radius: radius,
+                    color: '#3b82f6',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0.2,
+                    dashArray: '5, 5'
+                }).addTo(previewLayer);
+            }
+        }
+
+        function onMouseUp(e) {
+            if (!isDrawing) return;
+
+            isDrawing = false;
+
+            if (selectedShape === 'rectangle' || selectedShape === 'circle') {
+                const rect = document.getElementById('map').getBoundingClientRect();
+                const latlng = map.containerPointToLatLng([e.clientX - rect.left, e.clientY - rect.top]);
+
+                previewLayer.clearLayers();
+                finalizeShape(startLat, startLng, latlng.lat, latlng.lng);
+            }
+        }
+
+        function onDoubleClick(e) {
+            if (selectedShape !== 'polygon' || polygonPoints.length < 3) return;
+
+            e.preventDefault();
+            finalizePolygon();
+        }
+
+        function finalizeShape(lat1, lng1, lat2, lng2) {
+            let coords = [];
+            let area = 0;
+            let shape;
+
+            if (selectedShape === 'rectangle') {
+                coords = [
+                    { lat: lat1, lng: lng1 },
+                    { lat: lat2, lng: lng1 },
+                    { lat: lat2, lng: lng2 },
+                    { lat: lat1, lng: lng2 }
+                ];
+
+                const bounds = [[lat1, lng1], [lat2, lng1], [lat2, lng2], [lat1, lng2], [lat1, lng1]];
+                const poly = turf.polygon([[...bounds.map(b => [b[1], b[0]])]]);
+                area = turf.area(poly);
+
+                shape = L.polygon([[lat1, lng1], [lat2, lng1], [lat2, lng2], [lat1, lng2]], {
+                    color: '#3b82f6',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0.3
+                }).addTo(drawLayer);
+            } else if (selectedShape === 'circle') {
+                const radius = map.distance([lat1, lng1], [lat2, lng2]);
+                area = Math.PI * radius * radius;
+
+                const circleCoords = [];
+                for (let i = 0; i < 32; i++) {
+                    const angle = (i / 32) * 2 * Math.PI;
+                    const lat = lat1 + (radius / 111320) * Math.cos(angle);
+                    const lng = lng1 + (radius / (111320 * Math.cos(lat1 * Math.PI / 180))) * Math.sin(angle);
+                    circleCoords.push({ lat, lng });
+                }
+                coords = circleCoords;
+
+                shape = L.circle([lat1, lng1], {
+                    radius: radius,
+                    color: '#3b82f6',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0.3
+                }).addTo(drawLayer);
+            }
+
+            currentLandId = 'temp_' + Date.now();
+            polygons[currentLandId] = { layer: shape, coords };
+
+            document.getElementById('landForm').reset();
+            const areaValue = area.toFixed(2);
+            document.getElementById('landArea').value = areaValue;
+            
+            selectedShape = null;
+            document.getElementById('mapInfo').classList.remove('active');
+            document.getElementById('rectBtn').classList.remove('active');
+            document.getElementById('circleBtn').classList.remove('active');
+            document.getElementById('polyBtn').classList.remove('active');
+
+            setTimeout(() => {
+                openAddModal();
+            }, 100);
+        }
+
+        function finalizePolygon() {
+            if (polygonPoints.length < 3) return;
+
+            const coords = polygonPoints.map(p => ({ lat: p.lat, lng: p.lng }));
+            const geoCoords = [[...polygonPoints.map(p => [p.lng, p.lat]), [polygonPoints[0].lng, polygonPoints[0].lat]]];
+            const poly = turf.polygon(geoCoords);
+            const area = turf.area(poly);
+
+            const shape = L.polygon(polygonPoints, {
+                color: '#3b82f6',
+                weight: 2,
+                opacity: 0.8,
+                fillOpacity: 0.3
+            }).addTo(drawLayer);
+
+            currentLandId = 'temp_' + Date.now();
+            polygons[currentLandId] = { layer: shape, coords };
+
+            document.getElementById('landForm').reset();
+            const areaValue = area.toFixed(2);
+            document.getElementById('landArea').value = areaValue;
+            
+            polygonPoints = [];
+            previewLayer.clearLayers();
+            selectedShape = null;
+            document.getElementById('mapInfo').classList.remove('active');
+            document.getElementById('polyBtn').classList.remove('active');
+
+            setTimeout(() => {
+                openAddModal();
+            }, 100);
+        }
+
+        function toggleMapType() {
+            const btn = document.querySelector('button[onclick="toggleMapType()"]');
+            
+            if (isSatelliteMode) {
+                map.removeLayer(tileLayer);
+                tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap',
+                    maxZoom: 19
+                }).addTo(map);
+                isSatelliteMode = false;
+                btn.textContent = '🛰️ Toggle Map View';
+            } else {
+                map.removeLayer(tileLayer);
+                tileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: '© Esri',
+                    maxZoom: 19
+                }).addTo(map);
+                isSatelliteMode = true;
+                btn.textContent = '📍 Toggle Map View';
+            }
+        }
+
+        function openAddModal() {
+            editingLandId = null;
+            document.getElementById('modalTitle').textContent = 'Add New Land';
+            
+            if (!document.getElementById('landArea').value) {
+                document.getElementById('landForm').reset();
+            }
+            
+            document.getElementById('landModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('landModal').classList.remove('active');
+            if (currentLandId && currentLandId.startsWith('temp_') && polygons[currentLandId]) {
+                drawLayer.removeLayer(polygons[currentLandId].layer);
+                delete polygons[currentLandId];
+                currentLandId = null;
+            }
+        }
+
+        function closeDetailsModal() {
+            document.getElementById('detailsModal').classList.remove('active');
+        }
+
+        document.getElementById('landForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            console.log('Save Property clicked');
+
+            const nameEl = document.getElementById('landName');
+            const areaEl = document.getElementById('landArea');
+            const saveBtn = document.querySelector('#landForm .btn-save');
+
+            if (!currentUser) {
+                alert('You are not logged in. Please log in again.');
+                return;
+            }
+            if (!nameEl.value.trim()) {
+                nameEl.scrollIntoView({ block: 'center' });
+                nameEl.focus();
+                alert('Please enter a Land Name.');
+                return;
+            }
+            const areaVal = parseFloat(areaEl.value);
+            if (isNaN(areaVal)) {
+                areaEl.scrollIntoView({ block: 'center' });
+                areaEl.focus();
+                alert('Please enter a valid Area.');
+                return;
+            }
+
+            const landData = {
+                name: nameEl.value.trim(),
+                location: document.getElementById('landLocation').value,
+                area: areaVal,
+                type: document.getElementById('landType').value,
+                status: document.getElementById('landStatus').value,
+                notes: document.getElementById('landNotes').value,
+                coordinates: (polygons[currentLandId] && polygons[currentLandId].coords) ? polygons[currentLandId].coords : null,
+                userId: currentUser.uid
+            };
+            if (editingLandId) {
+                // keep original coordinates when editing
+                if (!landData.coordinates) delete landData.coordinates;
+            } else {
+                landData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            }
+
+            const originalText = saveBtn.textContent;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                const timeout = new Promise(function (_, reject) {
+                    setTimeout(function () {
+                        var err = new Error('Firestore did not respond within 12 seconds.');
+                        err.code = 'timeout';
+                        reject(err);
+                    }, 12000);
+                });
+
+                const savePromise = editingLandId
+                    ? db.collection('lands').doc(editingLandId).update(landData)
+                    : db.collection('lands').add(landData);
+
+                await Promise.race([savePromise, timeout]);
+                console.log('Property saved');
+
+                closeModal();
+                await loadLands();
+                updateStats();
+            } catch (error) {
+                console.error('Save land error:', error);
+                var hint = '';
+                if (error.code === 'permission-denied') {
+                    hint = '\n\nFIX: Firebase Console > Firestore Database > Rules: publish the rules (allow create/read/update/delete when userId equals request.auth.uid).';
+                } else if (error.code === 'failed-precondition' || error.code === 'not-found') {
+                    hint = '\n\nFIX: Firebase Console > Firestore Database > click "Create database" (Firestore, not Realtime Database).';
+                } else if (error.code === 'unavailable') {
+                    hint = '\n\nFIX: Check your internet connection or ad-blocker (it may block Firestore).';
+                } else if (error.code === 'timeout') {
+                    hint = '\n\nMOST LIKELY: the Firestore database has not been created yet. Open Firebase Console > Firestore Database > Create database. Also publish the Rules, then try again. Ad-blockers can cause this too.';
+                } else if (error.code === 'invalid-argument') {
+                    hint = '\n\nFIX: A field has an invalid value. Check name and area.';
+                }
+                alert('Error saving land [' + (error.code || 'unknown') + ']: ' + error.message + hint);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
+            }
+        });
+
+        // ============ DOCUMENTS & IMAGES (stored in Firestore, no billing needed) ============
+        const MAX_IMAGE_DIM = 1400;
+        const MAX_DOC_BYTES = 700 * 1024;
+        const MAX_FILES_PER_LAND = 20;
+        const MAX_DATAURL_LENGTH = 950000; // Firestore documents are limited to 1 MiB
+        let currentFiles = [];
+        let lightboxUrl = null;
+        let lightboxFileName = '';
+
+        function escapeHtml(str) {
+            return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        function formatBytes(n) {
+            if (n < 1024) return n + ' B';
+            if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
+            return (n / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function withTimeout(promise, ms, label) {
+            return Promise.race([
+                promise,
+                new Promise(function (_, reject) {
+                    setTimeout(function () { reject(new Error((label || 'Operation') + ' timed out')); }, ms);
+                })
+            ]);
+        }
+
+        function readAsDataURL(file) {
+            return new Promise(function (resolve, reject) {
+                var r = new FileReader();
+                r.onload = function () { resolve(r.result); };
+                r.onerror = function () { reject(new Error('Could not read file')); };
+                r.readAsDataURL(file);
+            });
+        }
+
+        function loadImageElement(src) {
+            return new Promise(function (resolve, reject) {
+                var img = new Image();
+                img.onload = function () { resolve(img); };
+                img.onerror = function () { reject(new Error('This image format is not supported. Please use JPG or PNG.')); };
+                img.src = src;
+            });
+        }
+
+        function drawScaled(img, maxDim, quality) {
+            var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+            var w = Math.max(1, Math.round(img.width * scale));
+            var h = Math.max(1, Math.round(img.height * scale));
+            var canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            return canvas.toDataURL('image/jpeg', quality);
+        }
+
+        async function compressImage(file) {
+            var src = await readAsDataURL(file);
+            var img = await loadImageElement(src);
+            var dim = MAX_IMAGE_DIM;
+            var quality = 0.72;
+            var dataUrl = drawScaled(img, dim, quality);
+            var tries = 0;
+            while (dataUrl.length > MAX_DATAURL_LENGTH && tries < 6) {
+                dim = Math.round(dim * 0.8);
+                quality = Math.max(0.5, quality - 0.05);
+                dataUrl = drawScaled(img, dim, quality);
+                tries++;
+            }
+            if (dataUrl.length > MAX_DATAURL_LENGTH) throw new Error('Image is too large even after compression.');
+            var thumb = drawScaled(img, 160, 0.6);
+            return { dataUrl: dataUrl, thumb: thumb };
+        }
+
+        function setUploadStatus(html) {
+            document.getElementById('uploadStatus').innerHTML = html;
+        }
+
+        async function handleFilesSelected(input) {
+            var landId = currentLandId;
+            var files = Array.from(input.files || []);
+            input.value = '';
+            if (!landId || landId.indexOf('temp_') === 0) {
+                setUploadStatus('<span class="err">Save the property first, then open it to upload files.</span>');
+                return;
+            }
+            if (!currentUser) { setUploadStatus('<span class="err">Please log in again.</span>'); return; }
+            if (!files.length) return;
+
+            var ok = 0, failed = [];
+            for (var i = 0; i < files.length; i++) {
+                var file = files[i];
+                if (currentFiles.length + ok >= MAX_FILES_PER_LAND) {
+                    failed.push(file.name + ': limit of ' + MAX_FILES_PER_LAND + ' files reached');
+                    continue;
+                }
+                setUploadStatus('<span class="busy">Uploading ' + (i + 1) + ' of ' + files.length + ': ' + escapeHtml(file.name) + '...</span>');
+                try {
+                    var dataUrl, thumb = null, mime = file.type || 'application/octet-stream', size = file.size;
+                    if (file.type && file.type.indexOf('image/') === 0) {
+                        var res = await compressImage(file);
+                        dataUrl = res.dataUrl;
+                        thumb = res.thumb;
+                        mime = 'image/jpeg';
+                        size = Math.round(dataUrl.length * 0.75);
+                    } else {
+                        if (file.size > MAX_DOC_BYTES) {
+                            throw new Error('File is ' + formatBytes(file.size) + '. Limit is ' + formatBytes(MAX_DOC_BYTES) + ' (tip: compress the PDF or upload photos instead).');
+                        }
+                        dataUrl = await readAsDataURL(file);
+                        if (dataUrl.length > MAX_DATAURL_LENGTH) throw new Error('File is too large.');
+                    }
+
+                    var metaRef = db.collection('landFiles').doc();
+                    var batch = db.batch();
+                    batch.set(metaRef, {
+                        landId: landId,
+                        userId: currentUser.uid,
+                        name: file.name,
+                        mime: mime,
+                        size: size,
+                        thumb: thumb,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    batch.set(db.collection('landFileData').doc(metaRef.id), {
+                        landId: landId,
+                        userId: currentUser.uid,
+                        data: dataUrl
+                    });
+                    await withTimeout(batch.commit(), 20000, 'Upload');
+                    ok++;
+                } catch (err) {
+                    console.error('Upload error:', err);
+                    var reason = err.message;
+                    if (err.code === 'permission-denied') reason = 'permission denied. Publish the updated Firestore rules (see guide).';
+                    failed.push(file.name + ': ' + reason);
+                }
+            }
+
+            var summary = '';
+            if (ok) summary += '<div class="ok">✓ ' + ok + ' file(s) uploaded.</div>';
+            failed.forEach(function (f) { summary += '<div class="err">✗ ' + escapeHtml(f) + '</div>'; });
+            setUploadStatus(summary);
+            loadLandFiles(landId);
+        }
+
+        async function loadLandFiles(landId) {
+            var list = document.getElementById('filesList');
+            list.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:#6b7280;">Loading files...</div>';
+            currentFiles = [];
+            if (!currentUser) return;
+            try {
+                var snap = await db.collection('landFiles')
+                    .where('landId', '==', landId)
+                    .where('userId', '==', currentUser.uid)
+                    .get();
+                snap.forEach(function (d) { currentFiles.push(Object.assign({ id: d.id }, d.data())); });
+                currentFiles.sort(function (a, b) {
+                    var ta = a.createdAt && a.createdAt.seconds ? a.createdAt.seconds : 9999999999;
+                    var tb = b.createdAt && b.createdAt.seconds ? b.createdAt.seconds : 9999999999;
+                    return ta - tb;
+                });
+                renderLandFiles();
+            } catch (err) {
+                console.error('Load files error:', err);
+                var msg = err.code === 'permission-denied'
+                    ? 'Cannot load files: publish the updated Firestore rules (they must include landFiles and landFileData).'
+                    : 'Cannot load files: ' + err.message;
+                list.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:#dc2626;">' + escapeHtml(msg) + '</div>';
+            }
+        }
+
+        function fileIcon(mime, name) {
+            var n = (name || '').toLowerCase();
+            if (mime === 'application/pdf' || n.endsWith('.pdf')) return '📕';
+            if (n.endsWith('.doc') || n.endsWith('.docx')) return '📘';
+            if (n.endsWith('.xls') || n.endsWith('.xlsx')) return '📗';
+            return '📄';
+        }
+
+        function renderLandFiles() {
+            var list = document.getElementById('filesList');
+            if (!currentFiles.length) {
+                list.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:#9ca3af;">No files yet.</div>';
+                return;
+            }
+            list.innerHTML = currentFiles.map(function (f) {
+                var thumb = f.thumb
+                    ? '<img src="' + f.thumb + '" alt="">'
+                    : fileIcon(f.mime, f.name);
+                return '<div class="file-card">' +
+                    '<div class="file-thumb" onclick="openLandFile(\'' + f.id + '\')">' + thumb + '</div>' +
+                    '<div class="file-info"><div class="file-name">' + escapeHtml(f.name) + '</div>' +
+                    '<div class="file-size">' + formatBytes(f.size || 0) + '</div></div>' +
+                    '<div class="file-actions">' +
+                    '<button type="button" onclick="openLandFile(\'' + f.id + '\')">Open</button>' +
+                    '<button type="button" onclick="openLandFile(\'' + f.id + '\', true)">Save</button>' +
+                    '<button type="button" class="del" onclick="deleteLandFile(\'' + f.id + '\')">Delete</button>' +
+                    '</div></div>';
+            }).join('');
+        }
+
+        function dataUrlToBlob(dataUrl) {
+            var parts = dataUrl.split(',');
+            var mimeMatch = parts[0].match(/:(.*?);/);
+            var mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+            var bin = atob(parts[1]);
+            var arr = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            return new Blob([arr], { type: mime });
+        }
+
+        function triggerDownload(url, name) {
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = name || 'download';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        async function openLandFile(fileId, forceDownload) {
+            var meta = currentFiles.find(function (f) { return f.id === fileId; });
+            if (!meta) return;
+            try {
+                var doc = await withTimeout(db.collection('landFileData').doc(fileId).get(), 20000, 'Download');
+                if (!doc.exists) { alert('File data not found.'); return; }
+                var blob = dataUrlToBlob(doc.data().data);
+                var url = URL.createObjectURL(blob);
+                if (forceDownload) {
+                    triggerDownload(url, meta.name);
+                    setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+                    return;
+                }
+                if (meta.mime && meta.mime.indexOf('image/') === 0) {
+                    if (lightboxUrl) URL.revokeObjectURL(lightboxUrl);
+                    lightboxUrl = url;
+                    lightboxFileName = meta.name;
+                    document.getElementById('lightboxImg').src = url;
+                    document.getElementById('lightboxName').textContent = meta.name;
+                    document.getElementById('lightbox').classList.add('show');
+                } else {
+                    var w = window.open(url, '_blank');
+                    if (!w) triggerDownload(url, meta.name);
+                    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+                }
+            } catch (err) {
+                console.error('Open file error:', err);
+                alert('Could not open file: ' + err.message);
+            }
+        }
+
+        function closeLightbox(e, force) {
+            if (!force && e && e.target && e.target.id !== 'lightbox') return;
+            document.getElementById('lightbox').classList.remove('show');
+            document.getElementById('lightboxImg').src = '';
+        }
+
+        function downloadLightbox(e) {
+            e.stopPropagation();
+            if (lightboxUrl) triggerDownload(lightboxUrl, lightboxFileName);
+        }
+
+        async function deleteLandFile(fileId) {
+            var meta = currentFiles.find(function (f) { return f.id === fileId; });
+            if (!meta) return;
+            if (!confirm('Delete "' + meta.name + '"?')) return;
+            try {
+                var batch = db.batch();
+                batch.delete(db.collection('landFiles').doc(fileId));
+                batch.delete(db.collection('landFileData').doc(fileId));
+                await withTimeout(batch.commit(), 20000, 'Delete');
+                setUploadStatus('<span class="ok">✓ File deleted.</span>');
+                loadLandFiles(currentLandId);
+            } catch (err) {
+                console.error('Delete file error:', err);
+                alert('Could not delete file: ' + err.message);
+            }
+        }
+
+        function renderLands() {
+            const list = document.getElementById('landsList');
+
+            if (lands.length === 0) {
+                list.innerHTML = '<div class="empty-state"><p>📍</p><p style="margin-top: 8px;">Select a shape and draw on the map</p></div>';
+                return;
+            }
+
+            list.innerHTML = lands.map(land => `
+                <div class="land-item ${currentLandId === land.id ? 'active' : ''}" onclick="selectLand('${land.id}')" id="item-${land.id}">
+                    <h3>${land.name}</h3>
+                    <p>${land.location || 'No location'}</p>
+                    <span class="area">${land.area.toLocaleString(undefined, {maximumFractionDigits: 0})} m²</span>
+                </div>
+            `).join('');
+        }
+
+        function selectLand(id) {
+            currentLandId = id;
+            const land = lands.find(l => l.id === id);
+
+            document.querySelectorAll('.land-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('item-' + id).classList.add('active');
+
+            const content = document.getElementById('detailsContent');
+            content.innerHTML = `
+                <div style="padding: 12px 0;">
+                    <div style="margin-bottom: 14px;">
+                        <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">LOCATION</div>
+                        <div style="font-size: 14px; font-weight: 500;">${land.location || 'Not specified'}</div>
+                    </div>
+                    <div style="margin-bottom: 14px;">
+                        <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">TYPE</div>
+                        <div style="font-size: 14px; font-weight: 500;">${land.type}</div>
+                    </div>
+                    <div style="margin-bottom: 14px;">
+                        <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">STATUS</div>
+                        <div style="font-size: 14px; font-weight: 500;">${land.status}</div>
+                    </div>
+                    <div style="margin-bottom: 14px;">
+                        <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">AREA</div>
+                        <div style="font-size: 14px; font-weight: 700; color: #1e40af;">${land.area.toLocaleString(undefined, {maximumFractionDigits: 2})} m²</div>
+                    </div>
+                    ${land.notes ? `<div>
+                        <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px; font-weight: 600;">NOTES</div>
+                        <div style="font-size: 13px;">${land.notes}</div>
+                    </div>` : ''}
+                </div>
+            `;
+
+            document.getElementById('detailsTitle').textContent = land.name;
+            document.getElementById('detailsModal').classList.add('active');
+            setUploadStatus('');
+            loadLandFiles(id);
+        }
+
+        function editCurrentLand() {
+            editingLandId = currentLandId;
+            const land = lands.find(l => l.id === currentLandId);
+
+            document.getElementById('modalTitle').textContent = 'Edit Land';
+            document.getElementById('landName').value = land.name;
+            document.getElementById('landLocation').value = land.location;
+            document.getElementById('landArea').value = land.area;
+            document.getElementById('landType').value = land.type;
+            document.getElementById('landStatus').value = land.status;
+            document.getElementById('landNotes').value = land.notes;
+
+            document.getElementById('detailsModal').classList.remove('active');
+            document.getElementById('landModal').classList.add('active');
+        }
+
+        async function deleteCurrentLand() {
+            if (confirm('Delete this land?')) {
+                try {
+                    try {
+                        var fsnap = await db.collection('landFiles')
+                            .where('landId', '==', currentLandId)
+                            .where('userId', '==', currentUser.uid).get();
+                        if (!fsnap.empty) {
+                            var fbatch = db.batch();
+                            fsnap.forEach(function (d) {
+                                fbatch.delete(d.ref);
+                                fbatch.delete(db.collection('landFileData').doc(d.id));
+                            });
+                            await fbatch.commit();
+                        }
+                    } catch (fe) { console.warn('Could not delete attached files:', fe); }
+                    await db.collection('lands').doc(currentLandId).delete();
+                    if (polygons[currentLandId]) {
+                        drawLayer.removeLayer(polygons[currentLandId].layer);
+                        delete polygons[currentLandId];
+                    }
+                    closeDetailsModal();
+                    loadLands();
+                    updateStats();
+                } catch (error) {
+                    alert('Error deleting land: ' + error.message);
+                }
+            }
+        }
+
+        function renderMap() {
+            drawLayer.clearLayers();
+            polygons = {};
+
+            lands.forEach(land => {
+                if (land.coordinates && land.coordinates.length > 0) {
+                    const latlngs = land.coordinates.map(c => [c.lat, c.lng]);
+                    const shape = L.polygon(latlngs, {
+                        color: land.id === currentLandId ? '#10b981' : '#3b82f6',
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.3
+                    }).addTo(drawLayer);
+
+                    polygons[land.id] = { layer: shape, coords: land.coordinates };
+                    shape.on('click', () => selectLand(land.id));
+                }
+            });
+        }
+
+        function updateStats() {
+            document.getElementById('totalCount').textContent = lands.length;
+            const total = lands.reduce((sum, l) => sum + l.area, 0);
+            document.getElementById('totalArea').textContent = total.toLocaleString(undefined, {maximumFractionDigits: 0}) + ' m²';
+        }
+
+        async function loadLands() {
+            if (!currentUser) return;
+
+            try {
+                const querySnapshot = await db.collection('lands').where('userId', '==', currentUser.uid).get();
+                lands = [];
+                querySnapshot.forEach((doc) => {
+                    lands.push({ id: doc.id, ...doc.data() });
+                });
+                renderLands();
+                renderMap();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading lands:', error);
+                if (error.code === 'permission-denied') {
+                    alert('Cannot load your properties [permission-denied]. Publish the Firestore rules in Firebase Console > Firestore Database > Rules.');
+                }
+            }
+        }
+
+        document.getElementById('landModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        document.getElementById('detailsModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDetailsModal();
+        });
+    </script>
+</body>
+</html>
